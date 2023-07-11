@@ -2,10 +2,6 @@
 #Requires -Version 5.1
 
 BeforeAll {
-    $MailAdminParams = {
-        ($To -eq $ScriptAdmin) -and ($Priority -eq 'High') -and ($Subject -eq 'FAILURE')
-    }
-    
     $testGetPrinter = @(
         [PSCustomObject]@{
             Name            = 'PesterTestPrinter1'
@@ -129,6 +125,11 @@ BeforeAll {
         ScriptName       = 'Test'
         ComputersNotInOU = New-Item 'TestDrive:/ComputersNotInOU.txt' -ItemType File
         LogFolder        = New-Item 'TestDrive:/Log' -ItemType Directory
+        ScriptAdmin      = 'admin@constoso.com'
+    }
+
+    $MailAdminParams = {
+        ($To -eq $testParams.ScriptAdmin) -and ($Priority -eq 'High') -and ($Subject -eq 'FAILURE')
     }
 
     Mock Get-CimInstance {

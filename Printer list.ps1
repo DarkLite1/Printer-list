@@ -41,7 +41,10 @@ Param (
     [String[]]$OU,
     [String]$ComputersNotInOU,
     [String]$LogFolder = "$env:POWERSHELL_LOG_FOLDER\Printers\Printer list\$ScriptName",
-    [String[]]$ScriptAdmin = $env:POWERSHELL_SCRIPT_ADMIN
+    [String[]]$ScriptAdmin = @(
+        $env:POWERSHELL_SCRIPT_ADMIN,
+        $env:POWERSHELL_SCRIPT_ADMIN_BACKUP
+    )
 )
 
 Begin {
