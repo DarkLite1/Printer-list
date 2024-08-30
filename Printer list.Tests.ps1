@@ -22,7 +22,7 @@ BeforeAll {
             JobCount        = 0
         }
     )
-    
+
     $testGetPrinterDriver = @(
         [PSCustomObject]@{
             Name               = $testGetPrinter[0].DriverName
@@ -33,7 +33,7 @@ BeforeAll {
             PrinterEnvironment = 'Windows x64'
         }
     )
-    
+
     $testGetPrintConfiguration = @(
         [PSCustomObject]@{
             PrinterName   = $testGetPrinter[0].Name
@@ -44,7 +44,7 @@ BeforeAll {
             PaperSize     = 'A4'
         }
     )
-    
+
     $testGetPrinterPort = @(
         [PSCustomObject]@{
             Name               = $testGetPrinter[0].PortName
@@ -78,7 +78,7 @@ BeforeAll {
             StatusDescriptions  = $null
         }
     )
-    
+
     $testGetPrinterSNMPInfoHC = @(
         [PSCustomObject][Ordered]@{
             SNMP_ComputerName  = $testGetPrinterPort[0].PrinterHostAddress
@@ -104,7 +104,7 @@ BeforeAll {
             SNMP_Alert         = $null
         }
     )
-    
+
     $testGetDNSInfoHC = @(
         [PSCustomObject]@{
             ComputerName = $testGetPrinter[0].Name
@@ -144,6 +144,7 @@ BeforeAll {
     Mock Get-PrinterPort
     Mock Get-PrinterSNMPInfoHC
     Mock Get-ServersHC
+    Mock Get-WinEvent
     Mock Invoke-Command
     Mock Send-MailHC
     Mock Write-EventLog
@@ -187,7 +188,7 @@ Describe 'the following is retrieved from each computer' {
 
         .$testScript @testParams
 
-        $GetPrinterJobResults.ComputerName | 
+        $GetPrinterJobResults.ComputerName |
         Should -Be $testGetPrinter[0].ComputerName
         $GetPrinterJobResults.Data | Should -Not -BeNullOrEmpty
     }
@@ -204,7 +205,7 @@ Describe 'the following is retrieved from each computer' {
 
         .$testScript @testParams
 
-        $PrinterDrivers.ComputerName | 
+        $PrinterDrivers.ComputerName |
         Should -Be $testGetPrinterDriver[0].ComputerName
         $PrinterDrivers.Name | Should -Be $testGetPrinterDriver[0].Name
     }
@@ -221,9 +222,9 @@ Describe 'the following is retrieved from each computer' {
 
         .$testScript @testParams
 
-        $PrintConfigurations.ComputerName | 
+        $PrintConfigurations.ComputerName |
         Should -Be $testGetPrintConfiguration[0].ComputerName
-        $PrintConfigurations.PrinterName | 
+        $PrintConfigurations.PrinterName |
         Should -Be $testGetPrintConfiguration[0].PrinterName
     }
     It 'ports' {
@@ -239,9 +240,9 @@ Describe 'the following is retrieved from each computer' {
 
         .$testScript @testParams
 
-        $PrinterPorts.ComputerName | 
+        $PrinterPorts.ComputerName |
         Should -Contain $testGetPrinterPort[0].ComputerName
-        $PrinterPorts.Name | 
+        $PrinterPorts.Name |
         Should -Contain $testGetPrinterPort[0].Name
     }
 }
@@ -256,7 +257,7 @@ Describe 'when printers cannot be retrieved or something goes wrong' {
 
         .$testScript @testParams
 
-        $GetPrinterJobResults.ComputerName | 
+        $GetPrinterJobResults.ComputerName |
         Should -Be $testGetPrinter[0].ComputerName
         $GetPrinterJobResults.Data | Should -BeNullOrEmpty
         $GetPrinterJobResults.Error | Should -EQ 'Oops'
@@ -297,7 +298,7 @@ Describe 'add property to PrinterQueues' {
 
         .$testScript @testParams
 
-        $PrinterQueues[0].DNS_PortHostAddressToName | 
+        $PrinterQueues[0].DNS_PortHostAddressToName |
         Should -Be $testGetDNSInfoHC[1].HostName
     }
     It 'DNS info for name' {
@@ -316,7 +317,7 @@ Describe 'add property to PrinterQueues' {
 
         .$testScript @testParams
 
-        $PrinterQueues[0].DNS_PrinterNameToIP | 
+        $PrinterQueues[0].DNS_PrinterNameToIP |
         Should -Be $testGetDNSInfoHC[0].IP
     }
     It 'PrinterPorts' {
@@ -332,7 +333,7 @@ Describe 'add property to PrinterQueues' {
 
         .$testScript @testParams
 
-        $PrinterQueues[0].PortDescription | 
+        $PrinterQueues[0].PortDescription |
         Should -Be $testGetPrinterPort[0].Description
     }
     It 'PrinterDrivers' {
@@ -351,7 +352,7 @@ Describe 'add property to PrinterQueues' {
 
         .$testScript @testParams
 
-        $PrinterQueues[0].DriverManufacturer | 
+        $PrinterQueues[0].DriverManufacturer |
         Should -Be $testGetPrinterDriver[0].Manufacturer
     }
     It 'PrintConfiguration' {
@@ -373,8 +374,8 @@ Describe 'add property to PrinterQueues' {
 
         .$testScript @testParams
 
-        $PrinterQueues[0].PaperSize | 
+        $PrinterQueues[0].PaperSize |
         Should -Be $testGetPrintConfiguration[0].PaperSize
     }
 }
-    
+

@@ -1,4 +1,4 @@
-﻿#Requires -Version 5.1
+﻿#Requires -Version 7
 #Requires -Modules ImportExcel
 
 <#
@@ -6,7 +6,7 @@
         Retrieve a list of installed printers on servers.
 
     .DESCRIPTION
-        Retrieve a list of all installed printers on servers found in the 
+        Retrieve a list of all installed printers on servers found in the
         specified organizational units. The list will be send by e-mail with
         an Excel file in attachment containing all printers found.
 
@@ -116,7 +116,7 @@ Begin {
         }
 
         if (
-            ($ComputersNotInOU) -and 
+            ($ComputersNotInOU) -and
             (-not (Test-Path -LiteralPath $ComputersNotInOU -PathType Leaf))
         ) {
             throw "File '$ComputersNotInOU' not found that contains the computer names that are not available in the OU"
@@ -185,7 +185,7 @@ Process {
 
         #region Get printer drivers and ports
         <#
-            Retrieving printer drivers and ports is not done in jobs. When jobs 
+            Retrieving printer drivers and ports is not done in jobs. When jobs
             are used it can happen that not all ports or drivers are retrieved.
         #>
         $PrinterDrivers = @()
@@ -206,12 +206,12 @@ Process {
 
         #region Get printer configurations
         <#
-            Retrieving the printer configs is done in jobs because for some 
-            printers the call freezes the script. To avoid this the job runtime 
-            is limited to a specific time span after which the job will be 
+            Retrieving the printer configs is done in jobs because for some
+            printers the call freezes the script. To avoid this the job runtime
+            is limited to a specific time span after which the job will be
             stopped.
 
-            Running multiple jobs at once failed to retrieve all details, hence 
+            Running multiple jobs at once failed to retrieve all details, hence
             the use of 1 job at a time.
         #>
         $jobTimer = @{ }
@@ -278,7 +278,7 @@ Process {
         if ($UniquePrinterPorts = $PrinterPorts.PrinterHostAddress | Sort-Object -Unique) {
             Write-EventLog @EventVerboseParams -Message "Get printer SNMP details for $($UniquePrinterPorts.count) unique printer port host addresses"
 
-            $SNMP = Get-PrinterSNMPInfoHC -ComputerName $UniquePrinterPorts |
+            $SNMP = Get-PrinterSnmpInfoHC -ComputerName $UniquePrinterPorts |
             Select-Object -Property * -ExcludeProperty PSComputerName, PSSourceJobInstanceId
 
             Foreach ($S in $SNMP) {
@@ -315,7 +315,7 @@ Process {
                 $P | Add-Member -NotePropertyMembers $Members -TypeName NoteProperty
             }
 
-            $DNS = Get-DNSInfoHC $uniqueDnsNames |
+            $DNS = Get-DnsInfoHC $uniqueDnsNames |
             Select-Object -Property * -ExcludeProperty PSComputerName, PSSourceJobInstanceId
 
             Foreach ($D in $DNS) {
@@ -362,6 +362,60 @@ Process {
             }
         }
         #endregion
+
+        #region Get print jobs
+        $eventLogPrintJobs = @()
+
+        foreach (
+            $computerName in
+            $PrinterQueues.ComputerName | Sort-Object -Unique
+        ) {
+            try {
+                Write-Verbose "Get print jobs from event log '$computerName'"
+
+                $eventLogPrintJobs += Get-WinEvent -ComputerName $computerName -FilterHashtable @{
+                    LogName = 'Microsoft-Windows-PrintService/Operational'
+                    Id      = 307
+                } -ErrorAction 'Stop' |
+                Select-Object -Property TimeCreated,
+                @{
+                    Label      = 'ComputerName'
+                    Expression = { $computerName }
+                },
+                @{
+                    Label      = 'PrinterName'
+                    Expression = { $_.Properties[4].Value }
+                },
+                @{
+                    Label      = 'PrinterFQDN'
+                    Expression = { $_.properties[5].value }
+                },
+                @{
+                    Label      = 'ClientName'
+                    Expression = { $_.properties[3].value }
+                },
+                @{
+                    Label      = 'UserName'
+                    Expression = { $_.Properties[2].Value }
+                },
+                @{
+                    Label      = 'JobSize(Bytes)'
+                    Expression = { $_.Properties[6].Value }
+                },
+                @{
+                    Label      = 'NrOfPages'
+                    Expression = { $_.Properties[7].Value }
+                } |
+                Sort-Object TimeCreated -Descending
+            }
+            catch {
+                $M = "Failed to retrieve print jobs from event log '$computerName': $_"
+
+                $Error.RemoveAt(0)
+                Write-Error $M
+            }
+        }
+        #endregion
     }
     Catch {
         Write-Warning $_
@@ -378,6 +432,25 @@ End {
         $Printers = $PrinterQueues | Sort-Object Name, ComputerName |
         Select-Object -Property ComputerName,
         @{Name = 'PrinterName'; Expression = { $_.Name } },
+        @{
+            Name       = 'LastPrintDate';
+            Expression = {
+                $printerName = $_.Name
+                $computerName = $_.ComputerName
+
+                $result = $eventLogPrintJobs.Where(
+                    {
+                        ($_.ComputerName -eq $computerName) -and
+                        (
+                            ($_.PrinterName -eq $printerName) -or
+                            ($_.PrinterFQDN -eq $printerName)
+                        )
+                    }
+                ), 'First'
+
+                $result.TimeCreated
+            }
+        },
         DeviceType,
         PortName,
         PortPrinterHostAddress,
@@ -461,6 +534,18 @@ End {
                 NoNumberConversion = 'PortPrinterHostAddress', 'PortName', 'DriverVersion', 'DNS_PrinterNameToIP'
             }
             $Printers | Export-Excel @ExcelParams @Params
+
+            $MailParams.Attachments = $ExcelParams.Path
+        }
+
+        if ($eventLogPrintJobs) {
+            Write-EventLog @EventOutParams -Message "Export to worksheet 'PrintJobs'"
+
+            $Params = @{
+                WorkSheetName      = 'PrintJobs'
+                TableName          = 'PrintJobs'
+            }
+            $eventLogPrintJobs | Export-Excel @ExcelParams @Params
 
             $MailParams.Attachments = $ExcelParams.Path
         }
