@@ -445,8 +445,8 @@ End {
                             ($_.PrinterName -eq $printerName) -or
                             ($_.PrinterFQDN -eq $printerName)
                         )
-                    }
-                ), 'First'
+                    }, 'First'
+                )
 
                 $result.TimeCreated
             }
@@ -542,8 +542,8 @@ End {
             Write-EventLog @EventOutParams -Message "Export to worksheet 'PrintJobs'"
 
             $Params = @{
-                WorkSheetName      = 'PrintJobs'
-                TableName          = 'PrintJobs'
+                WorkSheetName = 'PrintJobs'
+                TableName     = 'PrintJobs'
             }
             $eventLogPrintJobs | Export-Excel @ExcelParams @Params
 
